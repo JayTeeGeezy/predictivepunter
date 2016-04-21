@@ -33,15 +33,28 @@ setup(
 	],
 	entry_points={
 		'console_scripts': [
+			'scrape=predictivepunter.scrape:main'
 		]
 	},
 	install_requires=[
+		'cache_requests',
+		'lxml',
+		'pymongo',
+		'pypunters',
+		'pyracing'
 	],
 	test_suite='nose.collector',
 	tests_require=[
-		'nose'
+		'cache_requests',
+		'lxml',
+		'nose',
+		'pymongo',
+		'pypunters',
+		'pyracing'
 	],
 	dependency_links=[
+		'https://github.com/JayTeeGeezy/pypunters/tarball/develop#egg=pypunters-0.0.0',
+		'https://github.com/JayTeeGeezy/pyracing/tarball/develop#egg=pyracing-0.0.0'
 	],
 	include_package_data=True,
 	zip_safe=False
