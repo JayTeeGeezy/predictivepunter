@@ -96,6 +96,7 @@ def scrape(date_from, date_to, database, scraper, backup_database=False, threads
 
 	if backup_database:
 
+		global database_has_changed
 		database_has_changed = False
 
 		def handle_saved_event(entity):

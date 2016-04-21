@@ -8,11 +8,11 @@ def read_text(filename):
 
 setup(
 	name='predictivepunter',
-	version='0.0.0',
+	version='0.1.0',
 	description='Applying predictive analytics to horse racing via Python',
 	long_description=read_text('README.rst'),
 	classifiers=[
-		'Development Status :: 1 - Planning',
+		'Development Status :: 2 - Pre-Alpha',
 		'Environment :: Console',
 		'Intended Audience :: End Users/Desktop',
 		'License :: OSI Approved :: MIT License',
@@ -53,8 +53,6 @@ setup(
 		'pyracing'
 	],
 	dependency_links=[
-		'https://github.com/JayTeeGeezy/pypunters/tarball/develop#egg=pypunters-0.0.0',
-		'https://github.com/JayTeeGeezy/pyracing/tarball/develop#egg=pyracing-0.0.0'
 	],
 	include_package_data=True,
 	zip_safe=False
