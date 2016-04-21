@@ -33,6 +33,7 @@ setup(
 	],
 	entry_points={
 		'console_scripts': [
+			'scrape=predictivepunter.scrape:main'
 		]
 	},
 	install_requires=[
