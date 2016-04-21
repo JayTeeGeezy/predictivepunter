@@ -12,7 +12,7 @@ setup(
 	description='Applying predictive analytics to horse racing via Python',
 	long_description=read_text('README.rst'),
 	classifiers=[
-		'Development Status :: 1 - Planning',
+		'Development Status :: 2 - Pre-Alpha',
 		'Environment :: Console',
 		'Intended Audience :: End Users/Desktop',
 		'License :: OSI Approved :: MIT License',
