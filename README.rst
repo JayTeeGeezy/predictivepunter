@@ -32,6 +32,8 @@ Valid options for the scrape command-line utility are documented in the table be
 +----------------------+-------------------------------+-----------------------------------+
 | Short Format         | Long Format                   | Default                           |
 +======================+===============================+===================================+
+| -b                   | --backup-database             | False                             |
++----------------------+-------------------------------+-----------------------------------+
 | -d date_from-date_to | --date=date_from-date_to      | datetime.today()-datetime.today() |
 +----------------------+-------------------------------+-----------------------------------+
 | -n database_name     | --database_name=database_name | predictivepunter                  |
