@@ -27,25 +27,15 @@ Before using predictivepunter to predict the results of future races, a local da
 
 	scrape <options>
 
-Valid options for the scrape command-line utility are documented in the table below:
+Valid options for the scrape command-line utility are documented below:
 
-+----------------------+-------------------------------+-----------------------------------+
-| Short Format         | Long Format                   | Default                           |
-+======================+===============================+===================================+
-| -b                   | --backup-database             | False                             |
-+----------------------+-------------------------------+-----------------------------------+
-| -d date_from-date_to | --date=date_from-date_to      | datetime.today()-datetime.today() |
-+----------------------+-------------------------------+-----------------------------------+
-| -n database_name     | --database_name=database_name | predictivepunter                  |
-+----------------------+-------------------------------+-----------------------------------+
-| -q                   | --quiet                       | False                             |
-+----------------------+-------------------------------+-----------------------------------+
-| -t threads           | --threads=4                   | 4                                 |
-+----------------------+-------------------------------+-----------------------------------+
-| -v                   | --verbose                     | False                             |
-+----------------------+-------------------------------+-----------------------------------+
-| -x cache_expiry      | --cache_expiry=cache_expiry   | 600 (10 minutes)                  |
-+----------------------+-------------------------------+-----------------------------------+
+-b, --backup-database             Dump the database to the filesystem after scraping each day's data (default: False)
+-d from-to, --date=from-to        The range of dates to scrape (default: today-today)
+-n name, --database-name=name     The name of the database to use (default: predictivepunter)
+-q, --quiet                       Suppress progress log messages (default: False)
+-t threads, --threads=threads     The number of threads to use (default: 4)
+-v, --verbose                     Output debugging log messages (default: False)
+-x expiry, --cache-expiry=expiry  The HTTP cache timeout period in seconds (default: 600)
 
 
 Testing
