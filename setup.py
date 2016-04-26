@@ -8,7 +8,7 @@ def read_text(filename):
 
 setup(
 	name='predictivepunter',
-	version='0.2.0',
+	version='0.2.1',
 	description='Applying predictive analytics to horse racing via Python',
 	long_description=read_text('README.rst'),
 	classifiers=[
@@ -39,7 +39,6 @@ setup(
 	},
 	install_requires=[
 		'cache_requests',
-		'kids.cache',
 		'lxml',
 		'pymongo',
 		'pypunters',
@@ -48,7 +47,6 @@ setup(
 	test_suite='nose.collector',
 	tests_require=[
 		'cache_requests',
-		'kids.cache',
 		'lxml',
 		'nose',
 		'pymongo',

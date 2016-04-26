@@ -64,6 +64,9 @@ Alternatively, individual components of pyracing can be tested by executing any 
 Version History
 ---------------
 
+0.2.1 (26 April 2016)
+	Fix memory leak and schema when seeding query data
+
 0.2.0 (26 April 2016)
 	Interim release to facilitate pre-seeding query data
 
