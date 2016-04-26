@@ -6,15 +6,15 @@ import unittest
 
 import cache_requests
 from lxml import html
-from predictivepunter.scrape import ScrapeProcessor
+from predictivepunter.seed import SeedProcessor
 import pymongo
 import pypunters
 
 
-class ScrapeProcessorTest(unittest.TestCase):
+class SeedProcessorTest(unittest.TestCase):
 
-	def test_scrape(self):
-		"""The scrape method should populate the database"""
+	def test_seed(self):
+		"""The seed method should seed the database with query data"""
 
 		configuration = {
 			'backup_database':	True,
@@ -27,16 +27,13 @@ class ScrapeProcessorTest(unittest.TestCase):
 		}
 
 		database = pymongo.MongoClient()[configuration['database_name']]
-		collections = ('meets', 'races', 'runners', 'horses', 'jockeys', 'trainers', 'performances')
-		for collection in collections:
-			database[collection].delete_many({})
+		database['seeds'].delete_many({})
 		dump_directory = 'dump/{name}'.format(name=configuration['database_name'])
 		if os.path.isdir(dump_directory):
 			shutil.rmtree(dump_directory)
 
-		processor = ScrapeProcessor(**configuration)
+		processor = SeedProcessor(**configuration)
 		processor.process_dates(configuration['date_from'], configuration['date_to'])
 
-		for collection in collections:
-			self.assertGreater(database[collection].count(), 0)
+		self.assertGreater(database['seeds'].count(), 0)
 		self.assertTrue(os.path.isdir(dump_directory))
