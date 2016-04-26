@@ -65,7 +65,7 @@ Version History
 ---------------
 
 0.2.1 (26 April 2016)
-	Fix memory leak when pre-seeding query data
+	Fix memory leak and schema when seeding query data
 
 0.2.0 (26 April 2016)
 	Interim release to facilitate pre-seeding query data
