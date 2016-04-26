@@ -1,7 +1,6 @@
 import locale
 import sys
 
-from kids.cache import cache
 import pyracing
 
 try:
@@ -72,11 +71,12 @@ class Seed(pyracing.Entity):
 		return 'seed for runner {runner}'.format(runner=self.runner)
 
 	@property
-	@cache
 	def runner(self):
 		"""Return the runner to which this seed applies"""
 
-		return pyracing.Runner.get_runner_by_id(self['runner_id'])
+		if not 'runner' in self.cache:
+			self.cache['runner'] = pyracing.Runner.get_runner_by_id(self['runner_id'])
+		return self.cache['runner']
 
 
 class SeedProcessor(CommandLineProcessor):

@@ -39,7 +39,6 @@ setup(
 	},
 	install_requires=[
 		'cache_requests',
-		'kids.cache',
 		'lxml',
 		'pymongo',
 		'pypunters',
@@ -48,7 +47,6 @@ setup(
 	test_suite='nose.collector',
 	tests_require=[
 		'cache_requests',
-		'kids.cache',
 		'lxml',
 		'nose',
 		'pymongo',
