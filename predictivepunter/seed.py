@@ -1,7 +1,6 @@
 import locale
 import sys
 
-from kids.cache import cache
 import pyracing
 
 try:
@@ -13,7 +12,7 @@ except SystemError:
 class Seed(pyracing.Entity):
 	"""A seed represents a runner's data in a consistent format applicable to machine learning"""
 
-	SEED_VERSION = 1
+	SEED_VERSION = 2
 
 	@classmethod
 	def get_seed_by_id(cls, id):
@@ -42,16 +41,17 @@ class Seed(pyracing.Entity):
 			'raw_data':		[]
 		}
 
-		for key in ('barrier', 'number', 'weight'):
+		for key in ('number', 'barrier', 'weight'):
 			seed['raw_data'].append(runner[key])
-		for key in ('age', 'carrying', 'spell', 'up'):
+		for key in ('carrying', 'age', 'spell', 'up'):
 			seed['raw_data'].append(getattr(runner, key))
 		for key in ('average_prize_money', 'average_starting_price', 'roi'):
 			seed['raw_data'].append(getattr(runner.career, key))
 		for key1 in ('at_distance', 'at_distance_on_track', 'career' ,'firm', 'good', 'heavy', 'on_track', 'on_up', 'since_rest', 'soft', 'synthetic', 'with_jockey'):
 			performance_list = getattr(runner, key1)
-			for key2 in ('average_momentum', 'fourth_pct', 'maximum_momentum', 'minimum_momentum', 'second_pct', 'starts', 'third_pct', 'win_pct'):
+			for key2 in ('starts', 'win_pct', 'place_pct', 'second_pct', 'third_pct', 'fourth_pct'):
 				seed['raw_data'].append(getattr(performance_list, key2))
+			seed['raw_data'].extend(runner.calculate_expected_speed(key1))
 
 		return seed
 
@@ -72,11 +72,12 @@ class Seed(pyracing.Entity):
 		return 'seed for runner {runner}'.format(runner=self.runner)
 
 	@property
-	@cache
 	def runner(self):
 		"""Return the runner to which this seed applies"""
 
-		return pyracing.Runner.get_runner_by_id(self['runner_id'])
+		if not 'runner' in self.cache:
+			self.cache['runner'] = pyracing.Runner.get_runner_by_id(self['runner_id'])
+		return self.cache['runner']
 
 
 class SeedProcessor(CommandLineProcessor):
