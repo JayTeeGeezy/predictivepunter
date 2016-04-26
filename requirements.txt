@@ -8,7 +8,7 @@ nose==1.3.7
 psutil==4.1.0
 pymongo==3.2.2
 pypunters==1.0.1
--e git+git@github.com:JayTeeGeezy/pyracing.git@fd8f03753e3efbecfe6011f31c8c2575b28f3a72#egg=pyracing-develop
+pyracing==0.2.1
 redis==2.10.5
 redislite==3.0.271
 requests==2.9.1

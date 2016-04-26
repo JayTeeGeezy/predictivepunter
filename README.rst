@@ -37,6 +37,12 @@ Valid options for the scrape command-line utility are documented below:
 -v, --verbose                     Output debugging log messages (default: False)
 -x expiry, --cache-expiry=expiry  The HTTP cache timeout period in seconds (default: 600)
 
+With a local database of historical racing data populated, the next step is to pre-seed query data for each of the runners stored in the database. To pre-seed query data, a 'seed' command-line utility is made available to any Python environment in which predictivepunter is installed, and can be called with the following command line::
+
+	seed <options>
+
+Valid options for the seed command-line utility are the same as those documented for the scrape command-line utility above.
+
 
 Testing
 -------
@@ -52,6 +58,7 @@ The above command will ensure all test dependencies are installed in your curren
 Alternatively, individual components of pyracing can be tested by executing any of the following commands from the root directory of the pyracing repository::
 
 	nosetests predictivepunter.test.scrape
+	nosetests predictivepunter.test.seed
 
 
 Version History
