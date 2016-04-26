@@ -33,11 +33,13 @@ setup(
 	],
 	entry_points={
 		'console_scripts': [
-			'scrape=predictivepunter.scrape:main'
+			'scrape=predictivepunter.scrape:main',
+			'seed=predictivepunter.seed:main'
 		]
 	},
 	install_requires=[
 		'cache_requests',
+		'kids.cache',
 		'lxml',
 		'pymongo',
 		'pypunters',
@@ -46,6 +48,7 @@ setup(
 	test_suite='nose.collector',
 	tests_require=[
 		'cache_requests',
+		'kids.cache',
 		'lxml',
 		'nose',
 		'pymongo',
