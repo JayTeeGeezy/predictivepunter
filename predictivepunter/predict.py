@@ -1,9 +1,11 @@
 import locale
 import sys
+import threading
+import time
 
 import numpy
 import pyracing
-from sklearn import cross_validation, ensemble
+from sklearn import cross_validation, feature_selection, pipeline, svm
 
 try:
 	from .common import CommandLineProcessor
@@ -18,6 +20,19 @@ class Prediction(pyracing.Entity):
 
 	PREDICTION_VERSION = 1
 	TEST_SIZE = 0.20
+
+	predictor_cache = {}
+	predictor_cache_lock = threading.RLock()
+
+	@classmethod
+	def clear_predictor_cache(cls):
+		"""Remove all cached predictors"""
+
+		if isinstance(cls.predictor_cache, dict):
+			for key in cls.predictor_cache:
+				del cls.predictor_cache[key]
+		else:
+			cls.predictor_cache = {}
 
 	@classmethod
 	def get_earliest_date(cls):
@@ -49,50 +64,108 @@ class Prediction(pyracing.Entity):
 		results = None
 		score = None
 
-		similar_races = pyracing.Race.find({
-			'entry_conditions': race['entry_conditions'],
-			'track_condition':	race['track_condition'],
-			'start_time':		{'$lt': race.meet['date']}
-			})
-		if len(similar_races) >= (1 / cls.TEST_SIZE):
+		predictor = None
+		generate_predictor = False
 
-			train_races, test_races = cross_validation.train_test_split(similar_races, test_size=cls.TEST_SIZE)
+		segment = tuple(race['entry_conditions']) + tuple([race['track_condition']])
+		with cls.predictor_cache_lock:
+			if segment in cls.predictor_cache:
+				predictor = cls.predictor_cache[segment]
+			else:
+				cls.predictor_cache[segment] = None
+				generate_predictor = True
 
-			train_X = []
-			train_y = []
-			train_weights = []
-			for race in train_races:
+		if generate_predictor:
+
+			similar_races = pyracing.Race.find({
+				'entry_conditions': race['entry_conditions'],
+				'track_condition':	race['track_condition'],
+				'start_time':		{'$lt': race.meet['date']}
+				})
+			if len(similar_races) >= (1 / cls.TEST_SIZE):
+
+				try:
+
+					train_races, test_races = cross_validation.train_test_split(similar_races, test_size=cls.TEST_SIZE)
+
+					train_X = []
+					train_y = []
+					for race in train_races:
+						for runner in race.runners:
+							if runner.result is not None:
+								train_X.append(list(Seed.get_seed_by_runner(runner).normalized_data))
+								train_y.append(runner.result)
+
+					test_X = []
+					test_y = []
+					for race in test_races:
+						for runner in race.runners:
+							if runner.result is not None:
+								test_X.append(list(Seed.get_seed_by_runner(runner).normalized_data))
+								test_y.append(runner.result)
+
+					predictor = {
+						'classifier':	None,
+						'score':		None
+					}
+					dual = len(train_X) < len(train_X[0])
+					loss = 'epsilon_insensitive'
+					if not dual:
+						loss = 'squared_epsilon_insensitive'
+					for estimator in (
+						svm.SVR(kernel='linear'),
+						svm.LinearSVR(dual=dual, loss=loss),
+						svm.NuSVR(kernel='linear')
+						):
+
+						classifier = pipeline.Pipeline([
+							('feature_selection', feature_selection.SelectFromModel(estimator, 'mean')),
+							('regression', estimator)
+							])
+						classifier.fit(train_X, train_y)
+						score = classifier.score(test_X, test_y)
+
+						if predictor['classifier'] is None or predictor['score'] is None or score > predictor['score']:
+							predictor['classifier'] = classifier
+							predictor['score'] = score
+
+					cls.predictor_cache[segment] = predictor
+
+				except:
+
+					del cls.predictor_cache[segment]
+					raise
+
+			else:
+
+				del cls.predictor_cache[segment]
+
+		else:
+
+			while predictor is None:
+				try:
+					predictor = cls.predictor_cache[segment]
+					time.sleep(1)
+				except KeyError:
+					break
+
+		if predictor is not None:
+
+			if 'classifier' in predictor and predictor['classifier'] is not None:
+				raw_results = {}
 				for runner in race.runners:
-					if runner.result is not None:
-						train_X.append(Seed.get_seed_by_runner(runner).normalized_data)
-						train_y.append(runner.result)
-						train_weights.append(race.importance)
+					raw_result = predictor['classifier'].predict(numpy.array(Seed.get_seed_by_runner(runner).normalized_data).reshape(1, -1))[0]
+					if raw_result is not None:
+						if not raw_result in raw_results:
+							raw_results[raw_result] = []
+						raw_results[raw_result].append(runner['number'])
+				for key in sorted(raw_results.keys()):
+					if results is None:
+						results = []
+					results.append(sorted([number for number in raw_results[key]]))
 
-			test_X = []
-			test_y = []
-			test_weights = []
-			for race in test_races:
-				for runner in race.runners:
-					if runner.result is not None:
-						test_X.append(Seed.get_seed_by_runner(runner).normalized_data)
-						test_y.append(runner.result)
-						test_weights.append(race.importance)
-
-			classifier = ensemble.GradientBoostingRegressor()
-			classifier.fit(train_X, train_y, train_weights)
-			score = classifier.score(test_X, test_y, test_weights)
-
-			raw_results = {}
-			for runner in race.runners:
-				raw_result = classifier.predict(numpy.array(Seed.get_seed_by_runner(runner).normalized_data).reshape(1, -1))[0]
-				if raw_result is not None:
-					if not raw_result in raw_results:
-						raw_results[raw_result] = []
-					raw_results[raw_result].append(runner['number'])
-			for key in sorted(raw_results.keys()):
-				if results is None:
-					results = []
-				results.append(sorted([number for number in raw_results[key]]))
+			if 'score' in predictor:
+				score = predictor['score']
 		
 		return {
 			'race_id':				race['_id'],
@@ -115,6 +188,8 @@ class Prediction(pyracing.Entity):
 
 		cls.create_index([('race_id', 1), ('earliest_date', 1), ('prediction_version', 1), ('seed_version', 1)])
 
+		pyracing.Race.create_index([('entry_conditions', 1), ('track_condition', 1), ('start_time', -1)])
+
 	def __str__(self):
 
 		return 'prediction for race {race}'.format(race=self.race)
@@ -136,8 +211,10 @@ class PredictProcessor(CommandLineProcessor):
 
 		super().__init__(message_prefix='predicting', *args, **kwargs)
 
-		Prediction.initialize()
-		pyracing.add_subscriber('saved_prediction', self.handle_saved_event)
+	def pre_process_date(self, date):
+		"""Handle the pre_process_date event by clearing the predictor cache"""
+
+		Prediction.clear_predictor_cache()
 
 	def post_process_race(self, race):
 		"""Handle the post_process_race event by creating a prediction for the race"""
