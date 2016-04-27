@@ -1,10 +1,11 @@
 import locale
 import sys
 import threading
+import time
 
 import numpy
 import pyracing
-from sklearn import cross_validation, ensemble
+from sklearn import cross_validation, feature_selection, pipeline, svm
 
 try:
 	from .common import CommandLineProcessor
@@ -89,30 +90,30 @@ class Prediction(pyracing.Entity):
 
 					train_X = []
 					train_y = []
-					train_weights = []
 					for race in train_races:
 						for runner in race.runners:
 							if runner.result is not None:
-								train_X.append(Seed.get_seed_by_runner(runner).normalized_data)
+								train_X.append(list(Seed.get_seed_by_runner(runner).normalized_data))
 								train_y.append(runner.result)
-								train_weights.append(race.importance)
 
 					test_X = []
 					test_y = []
-					test_weights = []
 					for race in test_races:
 						for runner in race.runners:
 							if runner.result is not None:
-								test_X.append(Seed.get_seed_by_runner(runner).normalized_data)
+								test_X.append(list(Seed.get_seed_by_runner(runner).normalized_data))
 								test_y.append(runner.result)
-								test_weights.append(race.importance)
 
-					classifier = ensemble.GradientBoostingRegressor()
-					classifier.fit(train_X, train_y, train_weights)
+					estimator = svm.LinearSVC(dual=len(train_X) < len(train_X[0]))
+					classifier = pipeline.Pipeline([
+						('feature_selection', feature_selection.SelectFromModel(estimator, 'mean')),
+						('regression', estimator)
+						])
+					classifier.fit(train_X, train_y)
 
 					predictor = {
 						'classifier':	classifier,
-						'score':		classifier.score(test_X, test_y, test_weights)
+						'score':		classifier.score(test_X, test_y)
 					}
 					cls.predictor_cache[segment] = predictor
 
@@ -130,6 +131,7 @@ class Prediction(pyracing.Entity):
 			while predictor is None:
 				try:
 					predictor = cls.predictor_cache[segment]
+					time.sleep(1)
 				except KeyError:
 					break
 
@@ -171,6 +173,8 @@ class Prediction(pyracing.Entity):
 		cls.event_manager.add_subscriber('deleting_race', handle_deleting_race)
 
 		cls.create_index([('race_id', 1), ('earliest_date', 1), ('prediction_version', 1), ('seed_version', 1)])
+
+		pyracing.Race.create_index([('entry_conditions', 1), ('track_condition', 1), ('start_time', -1)])
 
 	def __str__(self):
 
