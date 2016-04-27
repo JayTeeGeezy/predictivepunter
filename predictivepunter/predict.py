@@ -104,17 +104,31 @@ class Prediction(pyracing.Entity):
 								test_X.append(list(Seed.get_seed_by_runner(runner).normalized_data))
 								test_y.append(runner.result)
 
-					estimator = svm.LinearSVC(dual=len(train_X) < len(train_X[0]))
-					classifier = pipeline.Pipeline([
-						('feature_selection', feature_selection.SelectFromModel(estimator, 'mean')),
-						('regression', estimator)
-						])
-					classifier.fit(train_X, train_y)
-
 					predictor = {
-						'classifier':	classifier,
-						'score':		classifier.score(test_X, test_y)
+						'classifier':	None,
+						'score':		None
 					}
+					dual = len(train_X) < len(train_X[0])
+					loss = 'epsilon_insensitive'
+					if not dual:
+						loss = 'squared_epsilon_insensitive'
+					for estimator in (
+						svm.SVR(kernel='linear'),
+						svm.LinearSVR(dual=dual, loss=loss),
+						svm.NuSVR(kernel='linear')
+						):
+
+						classifier = pipeline.Pipeline([
+							('feature_selection', feature_selection.SelectFromModel(estimator, 'mean')),
+							('regression', estimator)
+							])
+						classifier.fit(train_X, train_y)
+						score = classifier.score(train_X, train_y)
+
+						if predictor['classifier'] is None or predictor['score'] is None or score > predictor['score']:
+							predictor['classifier'] = classifier
+							predictor['score'] = score
+
 					cls.predictor_cache[segment] = predictor
 
 				except:
