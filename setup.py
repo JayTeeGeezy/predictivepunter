@@ -40,18 +40,24 @@ setup(
 	install_requires=[
 		'cache_requests',
 		'lxml',
+		'numpy',
 		'pymongo',
 		'pypunters',
-		'pyracing'
+		'pyracing',
+		'scikit-learn',
+		'scipy'
 	],
 	test_suite='nose.collector',
 	tests_require=[
 		'cache_requests',
 		'lxml',
 		'nose',
+		'numpy',
 		'pymongo',
 		'pypunters',
-		'pyracing'
+		'pyracing',
+		'scikit-learn',
+		'scipy'
 	],
 	dependency_links=[
 	],

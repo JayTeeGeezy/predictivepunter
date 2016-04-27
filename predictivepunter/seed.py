@@ -72,6 +72,26 @@ class Seed(pyracing.Entity):
 		return 'seed for runner {runner}'.format(runner=self.runner)
 
 	@property
+	def normalized_data(self):
+		"""Return an array of the raw data values normalized for all runners in the race"""
+
+		if not 'normalized_data' in self.cache:
+			self.cache['normalized_data'] = [0.5 for index in range(len(self['raw_data']))]
+
+			all_seeds = [Seed.get_seed_by_runner(runner) for runner in self.runner.race.runners]
+			for index in range(len(self['raw_data'])):
+				all_values = [seed['raw_data'][index] for seed in all_seeds if seed['raw_data'][index] is not None]
+				if len(all_values) > 0 and max(all_values) > min(all_values):
+					own_value = self['raw_data'][index]
+					if own_value is None:
+						average_value = sum(all_values) / len(all_values)
+						self.cache['normalized_data'][index] = (average_value - min(all_values)) / (max(all_values) - min(all_values))
+					else:
+						self.cache['normalized_data'][index] = (own_value - min(all_values)) / (max(all_values) - min(all_values))
+
+		return self.cache['normalized_data']
+
+	@property
 	def runner(self):
 		"""Return the runner to which this seed applies"""
 
