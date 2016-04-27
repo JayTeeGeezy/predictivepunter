@@ -123,7 +123,7 @@ class Prediction(pyracing.Entity):
 							('regression', estimator)
 							])
 						classifier.fit(train_X, train_y)
-						score = classifier.score(train_X, train_y)
+						score = classifier.score(test_X, test_y)
 
 						if predictor['classifier'] is None or predictor['score'] is None or score > predictor['score']:
 							predictor['classifier'] = classifier
