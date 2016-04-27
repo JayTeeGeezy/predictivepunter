@@ -108,14 +108,10 @@ class SeedProcessor(CommandLineProcessor):
 
 		super().__init__(message_prefix='seeding', *args, **kwargs)
 
-		Seed.initialize()
-		pyracing.add_subscriber('saved_seed', self.handle_saved_event)
+	def post_process_runner(self, runner):
+		"""Handle the post_process_runner event by creating a seed for the runner"""
 
-	def post_process_race(self, race):
-		"""Handle the post_process_race event by creating seeds for all the runners in the race"""
-
-		for runner in race.runners:
-			Seed.get_seed_by_runner(runner)
+		Seed.get_seed_by_runner(runner)
 
 
 def main():

@@ -78,7 +78,9 @@ class CommandLineProcessor(pyracing.Processor):
 		self.scraper = pypunters.Scraper(self.http_client, self.html_parser)
 
 		pyracing.initialize(self.database, self.scraper)
-		for entity in ('meet', 'race', 'runner', 'horse', 'jockey', 'trainer', 'performance'):
+		for entity in (Seed, Prediction):
+			entity.initialize()
+		for entity in ('meet', 'race', 'runner', 'horse', 'jockey', 'trainer', 'performance', 'seed', 'prediction'):
 			pyracing.add_subscriber('saved_' + entity, self.handle_saved_event)
 
 		super().__init__(threads=threads, message_prefix=message_prefix)
@@ -100,3 +102,11 @@ class CommandLineProcessor(pyracing.Processor):
 
 		if self.backup_database:
 			self.dump_database()
+
+
+try:
+	from .seed import Seed
+	from .predict import Prediction
+except SystemError:
+	from seed import Seed
+	from predict import Prediction

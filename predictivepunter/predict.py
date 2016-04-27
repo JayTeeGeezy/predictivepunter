@@ -136,9 +136,6 @@ class PredictProcessor(CommandLineProcessor):
 
 		super().__init__(message_prefix='predicting', *args, **kwargs)
 
-		Prediction.initialize()
-		pyracing.add_subscriber('saved_prediction', self.handle_saved_event)
-
 	def post_process_race(self, race):
 		"""Handle the post_process_race event by creating a prediction for the race"""
 		
