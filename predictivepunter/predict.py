@@ -3,6 +3,7 @@ import sys
 import threading
 import time
 
+from jtgpy.threaded_queues import QueuedCsvWriter
 import numpy
 import pyracing
 from sklearn import cross_validation, feature_selection, pipeline, svm
@@ -61,8 +62,14 @@ class Prediction(pyracing.Entity):
 	def generate_prediction(cls, race):
 		"""Generate a prediction for the specified race"""
 
-		results = None
-		score = None
+		prediction = {
+			'race_id':				race['_id'],
+			'earliest_date':		cls.get_earliest_date(),
+			'prediction_version':	cls.PREDICTION_VERSION,
+			'seed_version':			Seed.SEED_VERSION,
+			'results':				None,
+			'score':				None
+		}
 
 		predictor = None
 		generate_predictor = False
@@ -109,13 +116,14 @@ class Prediction(pyracing.Entity):
 						'score':		None
 					}
 					dual = len(train_X) < len(train_X[0])
+					kernel = 'linear'
 					loss = 'epsilon_insensitive'
 					if not dual:
 						loss = 'squared_epsilon_insensitive'
 					for estimator in (
-						svm.SVR(kernel='linear'),
+						svm.SVR(kernel=kernel),
 						svm.LinearSVR(dual=dual, loss=loss),
-						svm.NuSVR(kernel='linear')
+						svm.NuSVR(kernel=kernel)
 						):
 
 						classifier = pipeline.Pipeline([
@@ -145,7 +153,7 @@ class Prediction(pyracing.Entity):
 			while predictor is None:
 				try:
 					predictor = cls.predictor_cache[segment]
-					time.sleep(1)
+					time.sleep(10)
 				except KeyError:
 					break
 
@@ -160,21 +168,14 @@ class Prediction(pyracing.Entity):
 							raw_results[raw_result] = []
 						raw_results[raw_result].append(runner['number'])
 				for key in sorted(raw_results.keys()):
-					if results is None:
-						results = []
-					results.append(sorted([number for number in raw_results[key]]))
+					if prediction['results'] is None:
+						prediction['results'] = []
+					prediction['results'].append(sorted([number for number in raw_results[key]]))
 
 			if 'score' in predictor:
-				score = predictor['score']
+				prediction['score'] = predictor['score']
 		
-		return {
-			'race_id':				race['_id'],
-			'earliest_date':		cls.get_earliest_date(),
-			'prediction_version':	cls.PREDICTION_VERSION,
-			'seed_version':			Seed.SEED_VERSION,
-			'results':				results,
-			'score':				score
-		}
+		return prediction
 
 	@classmethod
 	def initialize(cls):
@@ -206,10 +207,12 @@ class Prediction(pyracing.Entity):
 class PredictProcessor(CommandLineProcessor):
 	"""Populate the database with predictions for all runners in the specified date range"""
 
-	def __init__(self, *args, **kwargs):
+	def __init__(self, csv_writer, *args, **kwargs):
 		"""Initialize instance dependencies"""
 
 		super().__init__(message_prefix='predicting', *args, **kwargs)
+
+		self.csv_writer = csv_writer
 
 	def pre_process_date(self, date):
 		"""Handle the pre_process_date event by clearing the predictor cache"""
@@ -219,7 +222,33 @@ class PredictProcessor(CommandLineProcessor):
 	def post_process_race(self, race):
 		"""Handle the post_process_race event by creating a prediction for the race"""
 		
-		Prediction.get_prediction_by_race(race)
+		prediction = Prediction.get_prediction_by_race(race)
+		if prediction is not None:
+
+			picks = [None for pick_count in range(4)]
+			if 'results' in prediction and prediction['results'] is not None:
+				total_picks = 0
+				for result in prediction['results']:
+					if total_picks < 4:
+						picks[total_picks] = result
+						total_picks += len(result)
+					else:
+						break
+			
+			row = [
+				race.meet['date'].date(),
+				race.meet['track'],
+				race['number'],
+				race['start_time'].time()
+				]
+			for pick in picks:
+				if pick is None or len(pick) < 1:
+					row.append(None)
+				else:
+					row.append(','.join([str(value) for value in pick]))
+			row.append(prediction['score'])
+
+			self.csv_writer.writerow(row)
 
 
 def main():
@@ -229,8 +258,24 @@ def main():
 
 	configuration = PredictProcessor.get_configuration(sys.argv[1:])
 
-	processor = PredictProcessor(**configuration)
+	queued_csv_writer = QueuedCsvWriter(sys.stdout)
+	queued_csv_writer.writerow([
+		'Date',
+		'Track',
+		'Race',
+		'Start Time',
+		'1st',
+		'2nd',
+		'3rd',
+		'4th',
+		'Score'
+		])
+
+	processor = PredictProcessor(csv_writer=queued_csv_writer, **configuration)
 	processor.process_dates(date_from=configuration['date_from'], date_to=configuration['date_to'])
+
+	if queued_csv_writer.is_running:
+		queued_csv_writer.join()
 
 
 if __name__ == '__main__':
