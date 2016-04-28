@@ -68,7 +68,9 @@ class Prediction(pyracing.Entity):
 			'prediction_version':	cls.PREDICTION_VERSION,
 			'seed_version':			Seed.SEED_VERSION,
 			'results':				None,
-			'score':				None
+			'score':				None,
+			'train_seeds':			None,
+			'test_seeds':			None
 		}
 
 		predictor = None
@@ -113,7 +115,9 @@ class Prediction(pyracing.Entity):
 
 					predictor = {
 						'classifier':	None,
-						'score':		None
+						'score':		None,
+						'train_seeds':	len(train_y),
+						'test_seeds':	len(test_y)
 					}
 					dual = len(train_X) < len(train_X[0])
 					kernel = 'linear'
@@ -174,6 +178,12 @@ class Prediction(pyracing.Entity):
 
 			if 'score' in predictor:
 				prediction['score'] = predictor['score']
+
+			if 'train_seeds' in predictor:
+				prediction['train_seeds'] = predictor['train_seeds']
+
+			if 'test_seeds' in predictor:
+				prediction['test_seeds'] = predictor['test_seeds']
 		
 		return prediction
 
@@ -194,6 +204,14 @@ class Prediction(pyracing.Entity):
 	def __str__(self):
 
 		return 'prediction for race {race}'.format(race=self.race)
+
+	@property
+	def confidence(self):
+		"""Return the prediction score multiplied by the number of test seeds"""
+
+		if 'score' in self and self['score'] is not None:
+			if 'test_seeds' in self and self['test_seeds'] is not None:
+				return self['score'] * self['test_seeds']
 
 	@property
 	def race(self):
@@ -246,7 +264,7 @@ class PredictProcessor(CommandLineProcessor):
 					row.append(None)
 				else:
 					row.append(','.join([str(value) for value in pick]))
-			row.append(prediction['score'])
+			row.append(prediction.confidence)
 
 			self.csv_writer.writerow(row)
 
@@ -268,7 +286,7 @@ def main():
 		'2nd',
 		'3rd',
 		'4th',
-		'Score'
+		'Confidence'
 		])
 
 	processor = PredictProcessor(csv_writer=queued_csv_writer, **configuration)
