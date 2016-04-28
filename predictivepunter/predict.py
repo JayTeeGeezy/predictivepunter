@@ -1,4 +1,5 @@
 import locale
+import logging
 import sys
 import threading
 import time
@@ -6,7 +7,7 @@ import time
 from jtgpy.threaded_queues import QueuedCsvWriter
 import numpy
 import pyracing
-from sklearn import cross_validation, feature_selection, pipeline, svm
+from sklearn import cross_validation, feature_selection, linear_model, pipeline, svm, tree
 
 try:
 	from .common import CommandLineProcessor
@@ -80,7 +81,8 @@ class Prediction(pyracing.Entity):
 			'results':				None,
 			'score':				None,
 			'train_seeds':			None,
-			'test_seeds':			None
+			'test_seeds':			None,
+			'estimator':			None
 		}
 
 		predictor = None
@@ -109,16 +111,16 @@ class Prediction(pyracing.Entity):
 
 					train_X = []
 					train_y = []
-					for race in train_races:
-						for seed in race.seeds:
+					for train_race in train_races:
+						for seed in train_race.seeds:
 							if seed['result'] is not None:
 								train_X.append(seed.normalized_data)
 								train_y.append(seed['result'])
 
 					test_X = []
 					test_y = []
-					for race in test_races:
-						for seed in race.seeds:
+					for test_race in test_races:
+						for seed in test_race.seeds:
 							if seed['result'] is not None:
 								test_X.append(seed.normalized_data)
 								test_y.append(seed['result'])
@@ -127,7 +129,8 @@ class Prediction(pyracing.Entity):
 						'classifier':	None,
 						'score':		None,
 						'train_seeds':	len(train_y),
-						'test_seeds':	len(test_y)
+						'test_seeds':	len(test_y),
+						'estimator':	None
 					}
 					dual = len(train_X) < len(train_X[0])
 					kernel = 'linear'
@@ -135,10 +138,22 @@ class Prediction(pyracing.Entity):
 					if not dual:
 						loss = 'squared_epsilon_insensitive'
 					for estimator in (
+						linear_model.BayesianRidge(),
+						linear_model.ElasticNet(),
+						linear_model.LinearRegression(),
+						linear_model.LogisticRegression(),
+						linear_model.OrthogonalMatchingPursuit(),
+						linear_model.PassiveAggressiveRegressor(),
+						linear_model.Perceptron(),
+						linear_model.Ridge(),
+						linear_model.SGDRegressor(),
 						svm.SVR(kernel=kernel),
 						svm.LinearSVR(dual=dual, loss=loss),
-						svm.NuSVR(kernel=kernel)
+						svm.NuSVR(kernel=kernel),
+						tree.DecisionTreeRegressor(),
+						tree.ExtraTreeRegressor()
 						):
+						logging.debug('Trying {estimator} for {segment}'.format(estimator=estimator.__class__.__name__, segment=segment))
 
 						classifier = pipeline.Pipeline([
 							('feature_selection', feature_selection.SelectFromModel(estimator, 'mean')),
@@ -148,8 +163,10 @@ class Prediction(pyracing.Entity):
 						score = classifier.score(test_X, test_y)
 
 						if predictor['classifier'] is None or predictor['score'] is None or score > predictor['score']:
+							logging.debug('Using {estimator} ({score}) for {segment}'.format(estimator=estimator.__class__.__name__, score=score, segment=segment))
 							predictor['classifier'] = classifier
 							predictor['score'] = score
+							predictor['estimator'] = estimator.__class__.__name__
 
 					cls.predictor_cache[segment] = predictor
 
@@ -196,6 +213,9 @@ class Prediction(pyracing.Entity):
 
 			if 'test_seeds' in predictor:
 				prediction['test_seeds'] = predictor['test_seeds']
+
+			if 'estimator' in predictor:
+				prediction['estimator'] = predictor['estimator']
 		
 		return prediction
 
@@ -286,6 +306,7 @@ class PredictProcessor(CommandLineProcessor):
 				else:
 					row.append(','.join([str(value) for value in pick]))
 			row.append(race.prediction.confidence)
+			row.append(race.prediction['estimator'])
 
 			self.csv_writer.writerow(row)
 
@@ -307,7 +328,8 @@ def main():
 		'2nd',
 		'3rd',
 		'4th',
-		'Confidence'
+		'Confidence',
+		'Estimator'
 		])
 
 	processor = PredictProcessor(csv_writer=queued_csv_writer, **configuration)
