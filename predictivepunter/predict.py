@@ -98,18 +98,18 @@ class Prediction(pyracing.Entity):
 					train_X = []
 					train_y = []
 					for race in train_races:
-						for runner in race.runners:
-							if runner.result is not None:
-								train_X.append(list(Seed.get_seed_by_runner(runner).normalized_data))
-								train_y.append(runner.result)
+						for seed in race.seeds:
+							if seed['result'] is not None:
+								train_X.append(seed.normalized_data)
+								train_y.append(seed['result'])
 
 					test_X = []
 					test_y = []
 					for race in test_races:
-						for runner in race.runners:
-							if runner.result is not None:
-								test_X.append(list(Seed.get_seed_by_runner(runner).normalized_data))
-								test_y.append(runner.result)
+						for seed in race.seeds:
+							if seed['result'] is not None:
+								test_X.append(seed.normalized_data)
+								test_y.append(seed['result'])
 
 					predictor = {
 						'classifier':	None,
