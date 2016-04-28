@@ -165,12 +165,12 @@ class Prediction(pyracing.Entity):
 
 			if 'classifier' in predictor and predictor['classifier'] is not None:
 				raw_results = {}
-				for runner in race.runners:
-					raw_result = predictor['classifier'].predict(numpy.array(Seed.get_seed_by_runner(runner).normalized_data).reshape(1, -1))[0]
+				for seed in race.seeds:
+					raw_result = predictor['classifier'].predict(numpy.array(seed.normalized_data).reshape(1, -1))[0]
 					if raw_result is not None:
 						if not raw_result in raw_results:
 							raw_results[raw_result] = []
-						raw_results[raw_result].append(runner['number'])
+						raw_results[raw_result].append(seed.runner['number'])
 				for key in sorted(raw_results.keys()):
 					if prediction['results'] is None:
 						prediction['results'] = []
