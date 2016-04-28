@@ -12,7 +12,7 @@ except SystemError:
 class Seed(pyracing.Entity):
 	"""A seed represents a runner's data in a consistent format applicable to machine learning"""
 
-	SEED_VERSION = 2
+	SEED_VERSION = 3
 
 	@classmethod
 	def get_seed_by_id(cls, id):
@@ -38,6 +38,7 @@ class Seed(pyracing.Entity):
 		seed = {
 			'runner_id':	runner['_id'],
 			'seed_version':	cls.SEED_VERSION,
+			'result':		runner.result,
 			'raw_data':		[]
 		}
 
@@ -67,6 +68,16 @@ class Seed(pyracing.Entity):
 
 		cls.create_index([('runner_id', 1), ('seed_version', 1)])
 
+		@property
+		def seeds(self):
+			"""Return a list of seeds for all runners in a race"""
+
+			if 'seeds' not in self.cache:
+				self.cache['seeds'] = [Seed.get_seed_by_runner(runner) for runner in self.runners]
+			return self.cache['seeds']
+
+		pyracing.Race.seeds = seeds
+
 	def __str__(self):
 
 		return 'seed for runner {runner}'.format(runner=self.runner)
@@ -75,21 +86,23 @@ class Seed(pyracing.Entity):
 	def normalized_data(self):
 		"""Return an array of the raw data values normalized for all runners in the race"""
 
-		if not 'normalized_data' in self.cache:
-			self.cache['normalized_data'] = [0.5 for index in range(len(self['raw_data']))]
+		if not 'normalized_data' in self:
+			
+			self['normalized_data'] = [0.5 for item in self['raw_data']]
 
-			all_seeds = [Seed.get_seed_by_runner(runner) for runner in self.runner.race.runners]
 			for index in range(len(self['raw_data'])):
-				all_values = [seed['raw_data'][index] for seed in all_seeds if seed['raw_data'][index] is not None]
+				all_values = [seed['raw_data'][index] for seed in self.runner.race.seeds if seed['raw_data'][index] is not None]
 				if len(all_values) > 0 and max(all_values) > min(all_values):
 					own_value = self['raw_data'][index]
 					if own_value is None:
 						average_value = sum(all_values) / len(all_values)
-						self.cache['normalized_data'][index] = (average_value - min(all_values)) / (max(all_values) - min(all_values))
+						self['normalized_data'][index] = (average_value - min(all_values)) / (max(all_values) - min(all_values))
 					else:
-						self.cache['normalized_data'][index] = (own_value - min(all_values)) / (max(all_values) - min(all_values))
+						self['normalized_data'][index] = (own_value - min(all_values)) / (max(all_values) - min(all_values))
 
-		return self.cache['normalized_data']
+			self.save()
+
+		return self['normalized_data']
 
 	@property
 	def runner(self):
