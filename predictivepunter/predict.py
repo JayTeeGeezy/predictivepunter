@@ -201,6 +201,16 @@ class Prediction(pyracing.Entity):
 
 		pyracing.Race.create_index([('entry_conditions', 1), ('track_condition', 1), ('start_time', -1)])
 
+		@property
+		def prediction(self):
+			"""Return the prediction for this race"""
+
+			if not 'prediction' in self.cache:
+				self.cache['prediction'] = Prediction.get_prediction_by_race(self)
+			return self.cache['prediction']
+
+		pyracing.Race.prediction = prediction
+
 	def __str__(self):
 
 		return 'prediction for race {race}'.format(race=self.race)
@@ -240,13 +250,12 @@ class PredictProcessor(CommandLineProcessor):
 	def post_process_race(self, race):
 		"""Handle the post_process_race event by creating a prediction for the race"""
 		
-		prediction = Prediction.get_prediction_by_race(race)
-		if prediction is not None:
+		if race.prediction is not None:
 
 			picks = [None for pick_count in range(4)]
-			if 'results' in prediction and prediction['results'] is not None:
+			if 'results' in race.prediction and race.prediction['results'] is not None:
 				total_picks = 0
-				for result in prediction['results']:
+				for result in race.prediction['results']:
 					if total_picks < 4:
 						picks[total_picks] = result
 						total_picks += len(result)
@@ -264,7 +273,7 @@ class PredictProcessor(CommandLineProcessor):
 					row.append(None)
 				else:
 					row.append(','.join([str(value) for value in pick]))
-			row.append(prediction.confidence)
+			row.append(race.prediction.confidence)
 
 			self.csv_writer.writerow(row)
 
