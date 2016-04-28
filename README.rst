@@ -43,6 +43,14 @@ With a local database of historical racing data populated, the next step is to p
 
 Valid options for the seed command-line utility are the same as those documented for the scrape command-line utility above.
 
+With query data seeded in the database, predictions can be made using the predict command-line utility as follows::
+
+	predict <options>
+
+Valid options for the predict command-line utility are the same as those documented for the scrape command-line utility above.
+
+The predict command-line utility will produce a CSV-formatted list on sys.stdout, of predictions for all races in the specified date range.
+
 
 Testing
 -------
@@ -59,10 +67,14 @@ Alternatively, individual components of pyracing can be tested by executing any 
 
 	nosetests predictivepunter.test.scrape
 	nosetests predictivepunter.test.seed
+	nosetests predictivepunter.test.predict
 
 
 Version History
 ---------------
+
+0.3.0 (28 April 2016)
+	Interim release to facilitate initial predictions
 
 0.2.3 (27 April 2016)
 	Fix ZeroDivisionErrors

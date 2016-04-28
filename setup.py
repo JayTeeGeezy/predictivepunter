@@ -8,7 +8,7 @@ def read_text(filename):
 
 setup(
 	name='predictivepunter',
-	version='0.2.3',
+	version='0.3.0',
 	description='Applying predictive analytics to horse racing via Python',
 	long_description=read_text('README.rst'),
 	classifiers=[
@@ -34,24 +34,33 @@ setup(
 	entry_points={
 		'console_scripts': [
 			'scrape=predictivepunter.scrape:main',
-			'seed=predictivepunter.seed:main'
+			'seed=predictivepunter.seed:main',
+			'predict=predictivepunter.predict:main'
 		]
 	},
 	install_requires=[
 		'cache_requests',
+		'jtgpy',
 		'lxml',
+		'numpy',
 		'pymongo',
 		'pypunters',
-		'pyracing'
+		'pyracing',
+		'scikit-learn',
+		'scipy'
 	],
 	test_suite='nose.collector',
 	tests_require=[
 		'cache_requests',
+		'jtgpy',
 		'lxml',
 		'nose',
+		'numpy',
 		'pymongo',
 		'pypunters',
-		'pyracing'
+		'pyracing',
+		'scikit-learn',
+		'scipy'
 	],
 	dependency_links=[
 	],
