@@ -1,4 +1,5 @@
 import locale
+import logging
 import sys
 import threading
 import time
@@ -6,7 +7,7 @@ import time
 from jtgpy.threaded_queues import QueuedCsvWriter
 import numpy
 import pyracing
-from sklearn import cross_validation, feature_selection, pipeline, svm
+from sklearn import cross_validation, feature_selection, linear_model, pipeline, svm, tree
 
 try:
 	from .common import CommandLineProcessor
@@ -34,6 +35,16 @@ class Prediction(pyracing.Entity):
 				del cls.predictor_cache[key]
 		else:
 			cls.predictor_cache = {}
+
+	@classmethod
+	def delete_expired(cls, *args, **kwargs):
+		"""Delete expired predictions"""
+
+		cls.get_database_collection().delete_many({'$or': [
+			{'earliest_date':		{'$gt': cls.get_earliest_date()}},
+			{'prediction_version':	{'$lt': cls.PREDICTION_VERSION}},
+			{'seed_version':		{'$lt': Seed.SEED_VERSION}}
+			]})
 
 	@classmethod
 	def get_earliest_date(cls):
@@ -70,7 +81,8 @@ class Prediction(pyracing.Entity):
 			'results':				None,
 			'score':				None,
 			'train_seeds':			None,
-			'test_seeds':			None
+			'test_seeds':			None,
+			'estimator':			None
 		}
 
 		predictor = None
@@ -99,16 +111,16 @@ class Prediction(pyracing.Entity):
 
 					train_X = []
 					train_y = []
-					for race in train_races:
-						for seed in race.seeds:
+					for train_race in train_races:
+						for seed in train_race.seeds:
 							if seed['result'] is not None:
 								train_X.append(seed.normalized_data)
 								train_y.append(seed['result'])
 
 					test_X = []
 					test_y = []
-					for race in test_races:
-						for seed in race.seeds:
+					for test_race in test_races:
+						for seed in test_race.seeds:
 							if seed['result'] is not None:
 								test_X.append(seed.normalized_data)
 								test_y.append(seed['result'])
@@ -117,7 +129,8 @@ class Prediction(pyracing.Entity):
 						'classifier':	None,
 						'score':		None,
 						'train_seeds':	len(train_y),
-						'test_seeds':	len(test_y)
+						'test_seeds':	len(test_y),
+						'estimator':	None
 					}
 					dual = len(train_X) < len(train_X[0])
 					kernel = 'linear'
@@ -125,10 +138,22 @@ class Prediction(pyracing.Entity):
 					if not dual:
 						loss = 'squared_epsilon_insensitive'
 					for estimator in (
+						linear_model.BayesianRidge(),
+						linear_model.ElasticNet(),
+						linear_model.LinearRegression(),
+						linear_model.LogisticRegression(),
+						linear_model.OrthogonalMatchingPursuit(),
+						linear_model.PassiveAggressiveRegressor(),
+						linear_model.Perceptron(),
+						linear_model.Ridge(),
+						linear_model.SGDRegressor(),
 						svm.SVR(kernel=kernel),
 						svm.LinearSVR(dual=dual, loss=loss),
-						svm.NuSVR(kernel=kernel)
+						svm.NuSVR(kernel=kernel),
+						tree.DecisionTreeRegressor(),
+						tree.ExtraTreeRegressor()
 						):
+						logging.debug('Trying {estimator} for {segment}'.format(estimator=estimator.__class__.__name__, segment=segment))
 
 						classifier = pipeline.Pipeline([
 							('feature_selection', feature_selection.SelectFromModel(estimator, 'mean')),
@@ -138,8 +163,10 @@ class Prediction(pyracing.Entity):
 						score = classifier.score(test_X, test_y)
 
 						if predictor['classifier'] is None or predictor['score'] is None or score > predictor['score']:
+							logging.debug('Using {estimator} ({score}) for {segment}'.format(estimator=estimator.__class__.__name__, score=score, segment=segment))
 							predictor['classifier'] = classifier
 							predictor['score'] = score
+							predictor['estimator'] = estimator.__class__.__name__
 
 					cls.predictor_cache[segment] = predictor
 
@@ -163,27 +190,32 @@ class Prediction(pyracing.Entity):
 
 		if predictor is not None:
 
+			reverse = False
+			if 'score' in predictor and predictor['score'] is not None:
+				reverse = predictor['score'] < 0
+				prediction['score'] = abs(predictor['score'])
+
 			if 'classifier' in predictor and predictor['classifier'] is not None:
 				raw_results = {}
-				for runner in race.runners:
-					raw_result = predictor['classifier'].predict(numpy.array(Seed.get_seed_by_runner(runner).normalized_data).reshape(1, -1))[0]
+				for seed in race.seeds:
+					raw_result = predictor['classifier'].predict(numpy.array(seed.normalized_data).reshape(1, -1))[0]
 					if raw_result is not None:
 						if not raw_result in raw_results:
 							raw_results[raw_result] = []
-						raw_results[raw_result].append(runner['number'])
-				for key in sorted(raw_results.keys()):
+						raw_results[raw_result].append(seed.runner['number'])
+				for key in sorted(raw_results.keys(), reverse=reverse):
 					if prediction['results'] is None:
 						prediction['results'] = []
 					prediction['results'].append(sorted([number for number in raw_results[key]]))
-
-			if 'score' in predictor:
-				prediction['score'] = predictor['score']
 
 			if 'train_seeds' in predictor:
 				prediction['train_seeds'] = predictor['train_seeds']
 
 			if 'test_seeds' in predictor:
 				prediction['test_seeds'] = predictor['test_seeds']
+
+			if 'estimator' in predictor:
+				prediction['estimator'] = predictor['estimator']
 		
 		return prediction
 
@@ -200,6 +232,16 @@ class Prediction(pyracing.Entity):
 		cls.create_index([('race_id', 1), ('earliest_date', 1), ('prediction_version', 1), ('seed_version', 1)])
 
 		pyracing.Race.create_index([('entry_conditions', 1), ('track_condition', 1), ('start_time', -1)])
+
+		@property
+		def prediction(self):
+			"""Return the prediction for this race"""
+
+			if not 'prediction' in self.cache:
+				self.cache['prediction'] = Prediction.get_prediction_by_race(self)
+			return self.cache['prediction']
+
+		pyracing.Race.prediction = prediction
 
 	def __str__(self):
 
@@ -240,13 +282,12 @@ class PredictProcessor(CommandLineProcessor):
 	def post_process_race(self, race):
 		"""Handle the post_process_race event by creating a prediction for the race"""
 		
-		prediction = Prediction.get_prediction_by_race(race)
-		if prediction is not None:
+		if race.prediction is not None:
 
 			picks = [None for pick_count in range(4)]
-			if 'results' in prediction and prediction['results'] is not None:
+			if 'results' in race.prediction and race.prediction['results'] is not None:
 				total_picks = 0
-				for result in prediction['results']:
+				for result in race.prediction['results']:
 					if total_picks < 4:
 						picks[total_picks] = result
 						total_picks += len(result)
@@ -264,7 +305,8 @@ class PredictProcessor(CommandLineProcessor):
 					row.append(None)
 				else:
 					row.append(','.join([str(value) for value in pick]))
-			row.append(prediction.confidence)
+			row.append(race.prediction.confidence)
+			row.append(race.prediction['estimator'])
 
 			self.csv_writer.writerow(row)
 
@@ -286,7 +328,8 @@ def main():
 		'2nd',
 		'3rd',
 		'4th',
-		'Confidence'
+		'Confidence',
+		'Estimator'
 		])
 
 	processor = PredictProcessor(csv_writer=queued_csv_writer, **configuration)

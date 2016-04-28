@@ -15,6 +15,12 @@ class Seed(pyracing.Entity):
 	SEED_VERSION = 3
 
 	@classmethod
+	def delete_expired(cls, *args, **kwargs):
+		"""Delete outdated seeds"""
+
+		cls.get_database_collection().delete_many({'seed_version': {'$lt': cls.SEED_VERSION}})
+
+	@classmethod
 	def get_seed_by_id(cls, id):
 		"""Get the single seed with the specified database ID"""
 
