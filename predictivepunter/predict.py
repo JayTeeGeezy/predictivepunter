@@ -39,12 +39,11 @@ class Prediction(pyracing.Entity):
 	def delete_expired(cls, *args, **kwargs):
 		"""Delete expired predictions"""
 
-		for prediction in cls.find({'$or': [
+		cls.get_database_collection().delete_many({'$or': [
 			{'earliest_date':		{'$gt': cls.get_earliest_date()}},
 			{'prediction_version':	{'$lt': cls.PREDICTION_VERSION}},
 			{'seed_version':		{'$lt': Seed.SEED_VERSION}}
-			]}):
-			prediction.delete()
+			]})
 
 	@classmethod
 	def get_earliest_date(cls):
@@ -174,6 +173,11 @@ class Prediction(pyracing.Entity):
 
 		if predictor is not None:
 
+			reverse = False
+			if 'score' in predictor and predictor['score'] is not None:
+				reverse = predictor['score'] < 0
+				prediction['score'] = abs(predictor['score'])
+
 			if 'classifier' in predictor and predictor['classifier'] is not None:
 				raw_results = {}
 				for seed in race.seeds:
@@ -182,13 +186,10 @@ class Prediction(pyracing.Entity):
 						if not raw_result in raw_results:
 							raw_results[raw_result] = []
 						raw_results[raw_result].append(seed.runner['number'])
-				for key in sorted(raw_results.keys()):
+				for key in sorted(raw_results.keys(), reverse=reverse):
 					if prediction['results'] is None:
 						prediction['results'] = []
 					prediction['results'].append(sorted([number for number in raw_results[key]]))
-
-			if 'score' in predictor:
-				prediction['score'] = predictor['score']
 
 			if 'train_seeds' in predictor:
 				prediction['train_seeds'] = predictor['train_seeds']
