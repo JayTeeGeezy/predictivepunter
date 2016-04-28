@@ -36,6 +36,17 @@ class Prediction(pyracing.Entity):
 			cls.predictor_cache = {}
 
 	@classmethod
+	def delete_expired(cls, *args, **kwargs):
+		"""Delete expired predictions"""
+
+		for prediction in cls.find({'$or': [
+			{'earliest_date':		{'$gt': cls.get_earliest_date()}},
+			{'prediction_version':	{'$lt': cls.PREDICTION_VERSION}},
+			{'seed_version':		{'$lt': Seed.SEED_VERSION}}
+			]}):
+			prediction.delete()
+
+	@classmethod
 	def get_earliest_date(cls):
 		"""Return the earliest date for any meet in the database"""
 
