@@ -12,7 +12,7 @@ except SystemError:
 class Seed(pyracing.Entity):
 	"""A seed represents a runner's data in a consistent format applicable to machine learning"""
 
-	SEED_VERSION = 3
+	SEED_VERSION = 4
 
 	@classmethod
 	def delete_expired(cls, *args, **kwargs):
@@ -54,7 +54,8 @@ class Seed(pyracing.Entity):
 			seed['raw_data'].append(getattr(runner, key))
 		for key in ('average_prize_money', 'average_starting_price', 'roi'):
 			seed['raw_data'].append(getattr(runner.career, key))
-		for key1 in ('at_distance', 'at_distance_on_track', 'career' ,'firm', 'good', 'heavy', 'on_track', 'on_up', 'since_rest', 'soft', 'synthetic', 'with_jockey'):
+			seed['raw_data'].append(getattr(runner.jockey_career, key))
+		for key1 in ('at_distance', 'at_distance_on_track', 'career' ,'firm', 'good', 'heavy', 'on_track', 'on_up', 'since_rest', 'soft', 'synthetic', 'with_jockey', 'jockey_at_distance', 'jockey_at_distance_on_track', 'jockey_career', 'jockey_firm', 'jockey_good', 'jockey_heavy', 'jockey_on_track', 'jockey_soft', 'jockey_synthetic'):
 			performance_list = getattr(runner, key1)
 			for key2 in ('starts', 'win_pct', 'place_pct', 'second_pct', 'third_pct', 'fourth_pct'):
 				seed['raw_data'].append(getattr(performance_list, key2))
