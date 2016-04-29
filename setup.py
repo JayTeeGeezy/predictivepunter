@@ -8,7 +8,7 @@ def read_text(filename):
 
 setup(
 	name='predictivepunter',
-	version='0.3.1',
+	version='0.4.0',
 	description='Applying predictive analytics to horse racing via Python',
 	long_description=read_text('README.rst'),
 	classifiers=[
