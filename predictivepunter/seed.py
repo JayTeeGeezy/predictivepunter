@@ -127,10 +127,11 @@ class SeedProcessor(CommandLineProcessor):
 
 		super().__init__(message_prefix='seeding', *args, **kwargs)
 
-	def post_process_runner(self, runner):
-		"""Handle the post_process_runner event by creating a seed for the runner"""
+	def post_process_race(self, race):
+		"""Handle the post_process_race event by creating and normalizing seed data for the race's runners"""
 
-		Seed.get_seed_by_runner(runner)
+		for seed in race.seeds:
+			seed.normalized_data
 
 
 def main():
