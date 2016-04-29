@@ -155,18 +155,23 @@ class Prediction(pyracing.Entity):
 						):
 						logging.debug('Trying {estimator} for {segment}'.format(estimator=estimator.__class__.__name__, segment=segment))
 
-						classifier = pipeline.Pipeline([
-							('feature_selection', feature_selection.SelectFromModel(estimator, 'mean')),
-							('regression', estimator)
-							])
-						classifier.fit(train_X, train_y)
-						score = classifier.score(test_X, test_y)
+						try:
+							classifier = pipeline.Pipeline([
+								('feature_selection', feature_selection.SelectFromModel(estimator, 'mean')),
+								('regression', estimator)
+								])
+							classifier.fit(train_X, train_y)
+							score = classifier.score(test_X, test_y)
 
-						if predictor['classifier'] is None or predictor['score'] is None or score > predictor['score']:
-							logging.debug('Using {estimator} ({score}) for {segment}'.format(estimator=estimator.__class__.__name__, score=score, segment=segment))
-							predictor['classifier'] = classifier
-							predictor['score'] = score
-							predictor['estimator'] = estimator.__class__.__name__
+							if predictor['classifier'] is None or predictor['score'] is None or score > predictor['score']:
+								logging.debug('Using {estimator} ({score}) for {segment}'.format(estimator=estimator.__class__.__name__, score=score, segment=segment))
+								predictor['classifier'] = classifier
+								predictor['score'] = score
+								predictor['estimator'] = estimator.__class__.__name__
+
+						except BaseException as e:
+							logging.debug('Caught exception while trying {estimator} for {segment}: {exception}'.format(estimator=estimator.__class__.__name__, segment=segment, exception=e))
+							continue
 
 					cls.predictor_cache[segment] = predictor
 

@@ -6,6 +6,7 @@ import subprocess
 import sys
 
 import cache_requests
+from jtgpy.profiling import log_time
 from lxml import html
 import pymongo
 import pypunters
@@ -102,6 +103,22 @@ class CommandLineProcessor(pyracing.Processor):
 
 		if self.backup_database:
 			self.dump_database()
+
+	def process_dates(self, date_from, date_to):
+		"""Wrap the process_dates method in log_time to log total execution time"""
+
+		log_time(
+			target=super().process_dates,
+			target_args=[
+				date_from,
+				date_to
+			],
+			message='{prefix} {date_from} to {date_to}'.format(
+				prefix=self.message_prefix,
+				date_from=date_from.strftime(locale.nl_langinfo(locale.D_FMT)),
+				date_to=date_to.strftime(locale.nl_langinfo(locale.D_FMT))
+				)
+			)
 
 
 try:
