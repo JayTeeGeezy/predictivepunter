@@ -27,10 +27,11 @@ class CommandLineProcessor(pyracing.Processor):
 			'date_from':		datetime.today().replace(hour=0, minute=0, second=0, microsecond=0),
 			'date_to':			datetime.today().replace(hour=0, minute=0, second=0, microsecond=0),
 			'logging_level':	logging.INFO,
+			'meets':			None,
 			'threads':			4
 		}
 
-		opts, args = getopt(args, 'bd:n:qt:vx:', ['backup-database', 'date=', 'database-name=', 'quiet', 'threads=', 'verbose', 'cache-expiry='])
+		opts, args = getopt(args, 'bd:m:n:qt:vx:', ['backup-database', 'date=', 'meets=', 'database-name=', 'quiet', 'threads=', 'verbose', 'cache-expiry='])
 
 		for opt, arg in opts:
 
@@ -43,6 +44,9 @@ class CommandLineProcessor(pyracing.Processor):
 					configuration['date_from'] = configuration['date_to'] = dates[-1]
 					if len(dates) > 1:
 						configuration['date_from'] = dates[0]
+
+			elif opt in ('-m', '--meets'):
+				configuration['meets'] = [meet for meet in arg.split(',')]
 
 			elif opt in ('-n', '--database-name'):
 				configuration['database_name'] = arg
@@ -61,7 +65,7 @@ class CommandLineProcessor(pyracing.Processor):
 
 		return configuration
 
-	def __init__(self, backup_database=False, cache_expiry=600, database_name='predictivepunter', logging_level=logging.INFO, message_prefix='processing', threads=4, *args, **kwargs):
+	def __init__(self, backup_database=False, cache_expiry=600, database_name='predictivepunter', logging_level=logging.INFO, meets=None, message_prefix='processing', threads=4, *args, **kwargs):
 		"""Initialize instance dependencies"""
 
 		self.backup_database = backup_database
@@ -84,7 +88,7 @@ class CommandLineProcessor(pyracing.Processor):
 		for entity in ('meet', 'race', 'runner', 'horse', 'jockey', 'trainer', 'performance', 'seed', 'prediction'):
 			pyracing.add_subscriber('saved_' + entity, self.handle_saved_event)
 
-		super().__init__(threads=threads, message_prefix=message_prefix)
+		super().__init__(meets=meets, threads=threads, message_prefix=message_prefix)
 
 	def handle_saved_event(self, entity):
 		"""Record the fact that the database has changed when an entity is saved"""
