@@ -1,7 +1,9 @@
 import locale
+import logging
 import sys
 
 import pyracing
+from sklearn import preprocessing
 
 try:
 	from .common import CommandLineProcessor
@@ -76,11 +78,21 @@ class Seed(pyracing.Entity):
 		cls.create_index([('runner_id', 1), ('seed_version', 1)])
 
 		@property
+		def seed(self):
+			"""Return the seed for the runner"""
+
+			if 'seed' not in self.cache:
+				self.cache['seed'] = Seed.get_seed_by_runner(self)
+			return self.cache['seed']
+
+		pyracing.Runner.seed = seed
+
+		@property
 		def seeds(self):
 			"""Return a list of seeds for all runners in a race"""
 
 			if 'seeds' not in self.cache:
-				self.cache['seeds'] = [Seed.get_seed_by_runner(runner) for runner in self.runners]
+				self.cache['seeds'] = [runner.seed for runner in self.runners]
 			return self.cache['seeds']
 
 		pyracing.Race.seeds = seeds
@@ -90,26 +102,31 @@ class Seed(pyracing.Entity):
 		return 'seed for runner {runner}'.format(runner=self.runner)
 
 	@property
-	def normalized_data(self):
-		"""Return an array of the raw data values normalized for all runners in the race"""
+	def fixed_data(self):
+		"""Return a list of seed values for missing values set to the average of the same value for other seeds"""
 
-		if not 'normalized_data' in self:
-			
-			self['normalized_data'] = [0.5 for item in self['raw_data']]
-
+		if 'fixed_data' not in self:
+			self['fixed_data'] = [0.5 for item in self['raw_data']]
+			all_values = [seed['raw_data'] for seed in self.runner.race.seeds]
 			for index in range(len(self['raw_data'])):
-				all_values = [seed['raw_data'][index] for seed in self.runner.race.seeds if seed['raw_data'][index] is not None]
-				if len(all_values) > 0 and max(all_values) > min(all_values):
-					own_value = self['raw_data'][index]
-					if own_value is None:
-						average_value = sum(all_values) / len(all_values)
-						self['normalized_data'][index] = (average_value - min(all_values)) / (max(all_values) - min(all_values))
-					else:
-						self['normalized_data'][index] = (own_value - min(all_values)) / (max(all_values) - min(all_values))
-
+				if self['raw_data'][index] is None:
+					other_values = [seed[index] for seed in all_values if seed[index] is not None]
+					if len(other_values) > 0:
+						self['fixed_data'][index] = sum(other_values) / len(other_values)
+				else:
+					self['fixed_data'][index] = self['raw_data'][index]
 			self.save()
+		return self['fixed_data']
 
-		return self['normalized_data']
+	@property
+	def normalized_data(self):
+		"""Return a list of seed values with values normalized against the same value for other seeds in the same race"""
+
+		if 'normalized_data' not in self.cache:
+			all_seeds = [self.fixed_data] + [seed.fixed_data for seed in self.runner.race.seeds if seed['_id'] != self['_id']]
+			normalized_seeds = preprocessing.normalize(all_seeds, axis=0)
+			self.cache['normalized_data'] = normalized_seeds[0]
+		return self.cache['normalized_data']
 
 	@property
 	def runner(self):
@@ -128,11 +145,10 @@ class SeedProcessor(CommandLineProcessor):
 
 		super().__init__(message_prefix='seeding', *args, **kwargs)
 
-	def post_process_race(self, race):
-		"""Handle the post_process_race event by creating and normalizing seed data for the race's runners"""
+	def post_process_runner(self, runner):
+		"""Handle the post_process_runner event by creating and normalizing seed data for the runner"""
 
-		for seed in race.seeds:
-			seed.normalized_data
+		logging.debug(str(runner.seed.normalized_data))
 
 
 def main():
