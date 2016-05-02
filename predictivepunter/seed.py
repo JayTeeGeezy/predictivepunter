@@ -1,6 +1,7 @@
 import locale
 import logging
 import sys
+from threading import RLock
 
 import pyracing
 from sklearn import preprocessing
@@ -15,6 +16,9 @@ class Seed(pyracing.Entity):
 	"""A seed represents a runner's data in a consistent format applicable to machine learning"""
 
 	SEED_VERSION = 4
+
+	jockey_seed_cache = {}
+	jockey_seed_cache_lock = RLock()
 
 	@classmethod
 	def delete_expired(cls, *args, **kwargs):
@@ -56,14 +60,39 @@ class Seed(pyracing.Entity):
 			seed['raw_data'].append(getattr(runner, key))
 		for key in ('average_prize_money', 'average_starting_price', 'roi'):
 			seed['raw_data'].append(getattr(runner.career, key))
-			seed['raw_data'].append(getattr(runner.jockey_career, key))
-		for key1 in ('at_distance', 'at_distance_on_track', 'career' ,'firm', 'good', 'heavy', 'on_track', 'on_up', 'since_rest', 'soft', 'synthetic', 'with_jockey', 'jockey_at_distance', 'jockey_at_distance_on_track', 'jockey_career', 'jockey_firm', 'jockey_good', 'jockey_heavy', 'jockey_on_track', 'jockey_soft', 'jockey_synthetic'):
+		for key1 in ('at_distance', 'at_distance_on_track', 'career' ,'firm', 'good', 'heavy', 'on_track', 'on_up', 'since_rest', 'soft', 'synthetic', 'with_jockey', 'jockey_at_distance', 'jockey_at_distance_on_track', 'jockey_on_track'):
 			performance_list = getattr(runner, key1)
 			for key2 in ('starts', 'win_pct', 'place_pct', 'second_pct', 'third_pct', 'fourth_pct'):
 				seed['raw_data'].append(getattr(performance_list, key2))
 			seed['raw_data'].extend(runner.calculate_expected_speed(key1))
+		seed['raw_data'].extend(cls.get_jockey_seed(runner))
 
 		return seed
+
+	@classmethod
+	def get_jockey_seed(cls, runner):
+		"""Retrieve seed data for the specified runner's jockey from the cache, or generate it"""
+
+		if runner is not None and runner.jockey is not None:
+			with cls.jockey_seed_cache_lock:
+				key = (runner.jockey['_id'], runner.race.meet['date'])
+				if not key in cls.jockey_seed_cache:
+					cls.jockey_seed_cache[key] = []
+					for key1 in ('average_prize_money', 'average_starting_price', 'roi'):
+						cls.jockey_seed_cache[key].append(getattr(runner.jockey_career, key1))
+					for key1 in ('jockey_career', 'jockey_firm', 'jockey_good', 'jockey_heavy', 'jockey_soft', 'jockey_synthetic'):
+						performance_list = getattr(runner, key1)
+						for key2 in ('starts', 'win_pct', 'place_pct', 'second_pct', 'third_pct', 'fourth_pct'):
+							cls.jockey_seed_cache[key].append(getattr(performance_list, key2))
+						cls.jockey_seed_cache[key].extend(runner.calculate_expected_speed(key1))
+				return cls.jockey_seed_cache[key]
+		else:
+			values = []
+			for key1 in ('jockey_career', 'jockey_firm', 'jockey_good', 'jockey_heavy', 'jockey_soft', 'jockey_synthetic'):
+				for key2 in ('starts', 'win_pct', 'place_pct', 'second_pct', 'third_pct', 'fourth_pct'):
+					values.append(None)
+				values.extend([None, None, None])
+			return values
 
 	@classmethod
 	def initialize(cls):
@@ -147,10 +176,16 @@ class SeedProcessor(CommandLineProcessor):
 
 		super().__init__(message_prefix='seeding', *args, **kwargs)
 
+	def pre_process_date(self, date):
+		"""Handle the pre_process_date event by clearing the jockey_seed_cache"""
+
+		for key in Seed.jockey_seed_cache:
+			del Seed.jockey_seed_cache[key]
+
 	def post_process_runner(self, runner):
 		"""Handle the post_process_runner event by creating a seed for the runner and fixing its data"""
 
-		runner.seed.fixed_data
+		runner.seed
 
 
 def main():
