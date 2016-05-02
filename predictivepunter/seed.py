@@ -15,7 +15,7 @@ except SystemError:
 class Seed(pyracing.Entity):
 	"""A seed represents a runner's data in a consistent format applicable to machine learning"""
 
-	SEED_VERSION = 4
+	SEED_VERSION = 5
 
 	jockey_seed_cache = {}
 	jockey_seed_cache_lock = RLock()
