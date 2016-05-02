@@ -88,6 +88,8 @@ class Seed(pyracing.Entity):
 				return cls.jockey_seed_cache[key]
 		else:
 			values = []
+			for key1 in ('average_prize_money', 'average_starting_price', 'roi'):
+				values.append(None)
 			for key1 in ('jockey_career', 'jockey_firm', 'jockey_good', 'jockey_heavy', 'jockey_soft', 'jockey_synthetic'):
 				for key2 in ('starts', 'win_pct', 'place_pct', 'second_pct', 'third_pct', 'fourth_pct'):
 					values.append(None)
