@@ -106,6 +106,7 @@ class Seed(pyracing.Entity):
 
 		cls.event_manager.add_subscriber('deleting_runner', handle_deleting_runner)
 
+		cls.create_index([('seed_version', 1)])
 		cls.create_index([('runner_id', 1), ('seed_version', 1)])
 
 		@property

@@ -234,9 +234,9 @@ class Prediction(pyracing.Entity):
 
 		cls.event_manager.add_subscriber('deleting_race', handle_deleting_race)
 
+		cls.create_index([('earliest_date', 1), ('prediction_version', 1), ('seed_version', 1)])
 		cls.create_index([('race_id', 1), ('earliest_date', 1), ('prediction_version', 1), ('seed_version', 1)])
-
-		pyracing.Race.create_index([('entry_conditions', 1), ('track_condition', 1), ('start_time', -1)])
+		pyracing.Race.create_index([('entry_conditions', 1), ('track_condition', 1), ('start_time', 1)])
 
 		@property
 		def prediction(self):
