@@ -139,16 +139,14 @@ class Seed(pyracing.Entity):
 
 		if 'fixed_data' not in self:
 			self['fixed_data'] = list(self['raw_data'])
-			if len([value for value in self['fixed_data'] if value is None]) > 0:
-				self['fixed_data'] = [0.5 for item in self['raw_data']]
-				all_values = [seed['raw_data'] for seed in self.runner.race.seeds]
-				for index in range(len(self['raw_data'])):
-					if self['raw_data'][index] is None:
-						other_values = [seed[index] for seed in all_values if seed[index] is not None]
-						if len(other_values) > 0:
-							self['fixed_data'][index] = sum(other_values) / len(other_values)
+			all_values = [seed['raw_data'] for seed in self.runner.race.seeds]
+			for index in range(len(self['fixed_data'])):
+				if self['fixed_data'][index] is None:
+					other_values = [seed[index] for seed in all_values if seed[index] is not None]
+					if len(other_values) > 0:
+						self['fixed_data'][index] = sum(other_values) / len(other_values)
 					else:
-						self['fixed_data'][index] = self['raw_data'][index]
+						self['fixed_data'][index] = 0.5
 			self.save()
 		return self['fixed_data']
 

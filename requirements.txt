@@ -1,7 +1,7 @@
 cache-requests==4.0.0
 cssselect==0.9.1
 Jinja2==2.8
-jtgpy==0.0.2
+-e git+git@github.com:JayTeeGeezy/jtgpy.git@0e43a91b6ce60c8534b128538f3c14fec5540086#egg=jtgpy-develop
 lxml==3.6.0
 MarkupSafe==0.23
 nose==1.3.7
@@ -9,7 +9,7 @@ numpy==1.11.0
 psutil==4.1.0
 pymongo==3.2.2
 pypunters==1.0.1
--e git+git@github.com:JayTeeGeezy/pyracing.git@86a2d7938644a163454fa4fb3d94686ca4c93162#egg=pyracing-develop
+-e git+git@github.com:JayTeeGeezy/pyracing.git@3cf9a3eef0aee81bc16f49a79e0ad584dbcb6e92#egg=pyracing-develop
 redis==2.10.5
 redislite==3.0.271
 requests==2.9.1
